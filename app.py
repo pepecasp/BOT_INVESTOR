@@ -31,10 +31,12 @@ st.set_page_config(
 
 def render_html(html_content: str):
     """
-    Renderiza HTML de forma segura eliminando sangrías automáticas de Python
-    para evitar que Markdown lo interprete como bloques de código (<pre><code>).
+    Renderiza HTML de forma 100% segura limpiando cualquier espacio inicial de cada
+    línea y eliminando líneas en blanco intermedias, evitando de raíz que el motor
+    de Markdown lo interprete como un bloque de código (<pre><code>).
     """
-    st.markdown(textwrap.dedent(html_content).strip(), unsafe_allow_html=True)
+    clean_lines = [line.strip() for line in html_content.strip().splitlines() if line.strip()]
+    st.markdown("".join(clean_lines), unsafe_allow_html=True)
 
 
 # Inyección global de estilos CSS: forzado de modo oscuro, glassmorphism y fintech UI
@@ -1126,7 +1128,6 @@ def main():
                         </span>
                     </div>
                 </div>
-
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08);">
                     <div style="flex: 1 1 130px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px;">
                         <div style="font-size: 0.72rem; font-weight: 700; color: #34d399; letter-spacing: 0.05em; text-transform: uppercase;">🛡️ Suelo 30D</div>
