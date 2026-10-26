@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador de Trading — Soportes, Resistencias y Rango Lateral</title>
+  <style>
+    :root {
+      --bg-main: #0b0e14;
+      --bg-panel: #131822;
+      --bg-card: #1b2230;
+      --border-color: #283246;
+      --text-main: #e6edf3;
+      --text-muted: #8b949e;
+      --accent-blue: #3b82f6;
+      --support-green: #10b981;
+      --support-bg: rgba(16, 185, 129, 0.14);
+      --resistance-red: #ef4444;
+      --resistance-bg: rgba(239, 68, 68, 0.14);
+      --warning-amber: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+    }
+
+    .terminal-container {
+      width: 100%;
+      max-width: 920px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Cabecera estilo plataforma de trading */
+    .terminal-header {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 22px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, #10b981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+    }
+
+    .brand-title h1 {
+      font-size: 1.18rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .scoreboard {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .score-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 6px 16px;
+      text-align: center;
+      min-width: 92px;
+    }
+
+    .score-label {
+      display: block;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .score-number {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-number.points { color: var(--support-green); }
+    .score-number.streak { color: var(--warning-amber); }
+
+    /* Panel del Gráfico */
+    .chart-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    }
+
+    .chart-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .asset-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ticker-badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.86rem;
+      letter-spacing: 0.03em;
+    }
+
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--support-green);
+      box-shadow: 0 0 8px var(--support-green);
+    }
+
+    .legend-inline {
+      display: flex;
+      gap: 16px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .legend-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-swatch {
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      background: #090c12;
+      border: 1px solid #1c2433;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Panel de Botones y Feedback */
+    .controls-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    }
+
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .question-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .shortcut-hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .guess-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 15px 16px;
+      color: var(--text-main);
+      font-size: 0.98rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .guess-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      border-color: var(--accent-blue);
+      background: #232d40;
+    }
+
+    .guess-btn:disabled {
+      cursor: default;
+      opacity: 0.65;
+    }
+
+    .guess-btn .btn-icon {
+      font-size: 1.45rem;
+    }
+
+    .guess-btn .btn-sub {
+      font-size: 0.76rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .guess-btn.btn-correct {
+      background: var(--support-bg);
+      border-color: var(--support-green);
+      color: #34d399;
+      opacity: 1;
+    }
+
+    .guess-btn.btn-wrong {
+      background: var(--resistance-bg);
+      border-color: var(--resistance-red);
+      color: #f87171;
+      opacity: 1;
+    }
+
+    /* Caja de Feedback */
+    .feedback-card {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px 18px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      position: relative;
+      overflow: hidden;
+      animation: slideUp 0.22s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .feedback-card.visible {
+      display: flex;
+    }
+
+    .feedback-card.is-success {
+      background: var(--support-bg);
+      border-color: rgba(16, 185, 129, 0.45);
+    }
+
+    .feedback-card.is-error {
+      background: var(--resistance-bg);
+      border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .feedback-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .feedback-headline {
+      font-size: 1.02rem;
+      font-weight: 700;
+    }
+
+    .feedback-card.is-success .feedback-headline { color: #34d399; }
+    .feedback-card.is-error .feedback-headline { color: #f87171; }
+
+    .feedback-explanation {
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: var(--text-main);
+    }
+
+    .skip-btn {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .skip-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Barra de progreso del temporizador automático */
+    .timer-bar-track {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .timer-bar-fill {
+      height: 100%;
+      width: 100%;
+      transform-origin: left;
+      transition: transform linear;
+    }
+
+    .feedback-card.is-success .timer-bar-fill { background: var(--support-green); }
+    .feedback-card.is-error .timer-bar-fill { background: var(--resistance-red); }
+
+    @media (max-width: 680px) {
+      .buttons-grid {
+        grid-template-columns: 1fr;
+      }
+      .canvas-container {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="terminal-container">
+    <!-- Cabecera y Contador de Puntos -->
+    <header class="terminal-header">
+      <div class="brand">
+        <div class="brand-logo">📈</div>
+        <div class="brand-title">
+          <h1>Simulador de Trading — Lectura de Niveles</h1>
+          <p>Identifica Soportes, Resistencias y Movimientos Laterales</p>
+        </div>
+      </div>
+
+      <div class="scoreboard">
+        <div class="score-box">
+          <span class="score-label">Puntos</span>
+          <span class="score-number points" id="scoreDisplay">0</span>
+        </div>
+        <div class="score-box">
+          <span class="score-label">Racha</span>
+          <span class="score-number streak" id="streakDisplay">0 🔥</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Gráfico de Líneas en Canvas -->
+    <section class="chart-panel">
+      <div class="chart-topbar">
+        <div class="asset-info">
+          <span class="ticker-badge" id="assetTicker">BTC / USD</span>
+          <span class="live-pill">
+            <span class="live-dot"></span>
+            Gráfico de Línea • Acción del Precio
+          </span>
+        </div>
+
+        <div class="legend-inline">
+          <div class="legend-tag">
+            <span class="legend-swatch" style="background: #3b82f6;"></span>
+            <span>Precio</span>
+          </div>
+          <div class="legend-tag">
+            <span class="legend-swatch" style="background: #10b981;"></span>
+            <span>Soporte (Suelo)</span>
+          </div>
+          <div class="legend-tag">
+            <span class="legend-swatch" style="background: #ef4444;"></span>
+            <span>Resistencia (Techo)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="priceCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- Botones de Interacción y Feedback -->
+    <section class="controls-panel">
+      <div class="question-header">
+        <h2>¿Qué patrón está formando el precio en este gráfico?</h2>
+        <span class="shortcut-hint">Teclas rápidas: 1, 2 o 3</span>
+      </div>
+
+      <div class="buttons-grid">
+        <button class="guess-btn" data-type="support" onclick="handleGuess('support')">
+          <span class="btn-icon">🟢</span>
+          <span>Soporte</span>
+          <span class="btn-sub">El precio rebota al alza en un suelo</span>
+        </button>
+
+        <button class="guess-btn" data-type="resistance" onclick="handleGuess('resistance')">
+          <span class="btn-icon">🔴</span>
+          <span>Resistencia</span>
+          <span class="btn-sub">El precio choca y cae en un techo</span>
+        </button>
+
+        <button class="guess-btn" data-type="sideways" onclick="handleGuess('sideways')">
+          <span class="btn-icon">↔️</span>
+          <span>Movimiento Lateral</span>
+          <span class="btn-sub">Rebota entre soporte y resistencia</span>
+        </button>
+      </div>
+
+      <!-- Mensaje de éxito o explicación del error -->
+      <div class="feedback-card" id="feedbackCard">
+        <div class="feedback-top">
+          <span class="feedback-headline" id="feedbackHeadline"></span>
+          <button class="skip-btn" onclick="loadNextRound()">Siguiente gráfico →</button>
+        </div>
+        <p class="feedback-explanation" id="feedbackText"></p>
+        <div class="timer-bar-track">
+          <div class="timer-bar-fill" id="timerBar"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('priceCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let score = 0;
+    let streak = 0;
+    let currentRound = null;
+    let isAnswered = false;
+    let autoNextTimeout = null;
+
+    const ASSETS = ['BTC / USD', 'ETH / USD', 'NVDA / USD', 'AAPL / USD', 'EUR / USD', 'SOL / USD', 'XAU / USD'];
+
+    const LABELS = {
+      support: 'Soporte',
+      resistance: 'Resistencia',
+      sideways: 'Movimiento Lateral'
+    };
+
+    function randomBetween(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    /**
+     * Genera una curva de precios suave interpolando puntos clave (waypoints)
+     * y respetando estrictamente el suelo (support) o techo (resistance).
+     */
+    function generatePriceSeries(waypoints, totalPoints, noise, floorPrice = null, ceilingPrice = null) {
+      const points = [];
+
+      for (let i = 0; i < totalPoints; i++) {
+        const t = i / (totalPoints - 1);
+
+        // Buscar el tramo actual entre dos waypoints
+        let segment = 0;
+        for (let j = 0; j < waypoints.length - 1; j++) {
+          if (t >= waypoints[j].t && t <= waypoints[j + 1].t) {
+            segment = j;
+            break;
+          }
+        }
+
+        const p0 = waypoints[segment];
+        const p1 = waypoints[segment + 1];
+        const localT = (t - p0.t) / (p1.t - p0.t || 1);
+
+        // Interpolación cosenoidal para giros orgánicos
+        const smoothT = (1 - Math.cos(localT * Math.PI)) / 2;
+        let price = p0.price + (p1.price - p0.price) * smoothT;
+
+        // Añadir micro-fluctuaciones de mercado excepto en los puntos exactos de toque
+        const isNearWaypoint = Math.abs(t - p0.t) < 0.025 || Math.abs(t - p1.t) < 0.025;
+        if (!isNearWaypoint) {
+          price += randomBetween(-noise, noise);
+        }
+
+        // Asegurar que la línea nunca rompa el soporte ni la resistencia
+        if (floorPrice !== null && price < floorPrice) {
+          price = floorPrice + randomBetween(0.15, 0.7);
+        }
+        if (ceilingPrice !== null && price > ceilingPrice) {
+          price = ceilingPrice - randomBetween(0.15, 0.7);
+        }
+
+        points.push({ index: i, price });
+      }
+
+      return points;
+    }
+
+    /**
+     * Crea aleatoriamente uno de los 3 escenarios:
+     * - 'support': Rebote claro en un suelo (2 o 3 toques abajo y subida).
+     * - 'resistance': Choque claro contra un techo (2 o 3 toques arriba y caída).
+     * - 'sideways': Movimiento lateral rebotando arriba y abajo entre techo y suelo.
+     */
+    function createScenario() {
+      const types = ['support', 'resistance', 'sideways'];
+      const type = types[Math.floor(Math.random() * types.length)];
+      const totalPoints = 90;
+      const base = Math.round(randomBetween(110, 420));
+
+      let points = [];
+      let supportLevel = null;
+      let resistanceLevel = null;
+      let touchMarkers = [];
+      let explanation = '';
+
+      if (type === 'support') {
+        supportLevel = base;
+        const startHigh = supportLevel + 30;
+        const midBounce = supportLevel + randomBetween(16, 21);
+        const endRally = supportLevel + randomBetween(26, 33);
+
+        // El precio viene desde arriba, toca el suelo dos veces y despega con fuerza
+        const waypoints = [
+          { t: 0.00, price: startHigh },
+          { t: 0.25, price: supportLevel },
+          { t: 0.50, price: midBounce },
+          { t: 0.74, price: supportLevel },
+          { t: 1.00, price: endRally }
+        ];
+
+        points = generatePriceSeries(waypoints, totalPoints, 1.1, supportLevel, null);
+
+        const idx1 = Math.round(0.25 * (totalPoints - 1));
+        const idx2 = Math.round(0.74 * (totalPoints - 1));
+        points[idx1].price = supportLevel;
+        points[idx2].price = supportLevel;
+
+        touchMarkers = [
+          { index: idx1, price: supportLevel, color: '#10b981', label: 'Rebote 1' },
+          { index: idx2, price: supportLevel, color: '#10b981', label: 'Rebote 2' }
+        ];
+
+        explanation = `El precio cayó dos veces hasta el nivel de <strong>$${supportLevel.toFixed(2)}</strong> y en ambas ocasiones los compradores frenaron la caída provocando un rebote al alza. La línea horizontal verde marca ese <strong>Soporte (suelo)</strong>.`;
+
+      } else if (type === 'resistance') {
+        resistanceLevel = base + 30;
+        const startLow = base + 2;
+        const midPullback = resistanceLevel - randomBetween(15, 20);
+        const endDrop = base + randomBetween(0, 5);
+
+        // El precio sube desde abajo, choca dos veces contra el mismo techo y cae rechazado
+        const waypoints = [
+          { t: 0.00, price: startLow },
+          { t: 0.26, price: resistanceLevel },
+          { t: 0.50, price: midPullback },
+          { t: 0.74, price: resistanceLevel },
+          { t: 1.00, price: endDrop }
+        ];
+
+        points = generatePriceSeries(waypoints, totalPoints, 1.1, null, resistanceLevel);
+
+        const idx1 = Math.round(0.26 * (totalPoints - 1));
+        const idx2 = Math.round(0.74 * (totalPoints - 1));
+        points[idx1].price = resistanceLevel;
+        points[idx2].price = resistanceLevel;
+
+        touchMarkers = [
+          { index: idx1, price: resistanceLevel, color: '#ef4444', label: 'Choque 1' },
+          { index: idx2, price: resistanceLevel, color: '#ef4444', label: 'Choque 2' }
+        ];
+
+        explanation = `El precio intentó superar el techo de <strong>$${resistanceLevel.toFixed(2)}</strong> en repetidas ocasiones pero chocó contra los vendedores y giró a la baja. La línea horizontal roja muestra esa <strong>Resistencia (techo)</strong>.`;
+
+      } else if (type === 'sideways') {
+        supportLevel = base;
+        resistanceLevel = base + 22;
+        const mid = (supportLevel + resistanceLevel) / 2;
+
+        // El precio rebota alternadamente entre el techo y el suelo (4 toques claros)
+        const waypoints = [
+          { t: 0.00, price: mid },
+          { t: 0.16, price: resistanceLevel },
+          { t: 0.38, price: supportLevel },
+          { t: 0.60, price: resistanceLevel },
+          { t: 0.82, price: supportLevel },
+          { t: 1.00, price: mid + 2 }
+        ];
+
+        points = generatePriceSeries(waypoints, totalPoints, 0.9, supportLevel, resistanceLevel);
+
+        const r1 = Math.round(0.16 * (totalPoints - 1));
+        const s1 = Math.round(0.38 * (totalPoints - 1));
+        const r2 = Math.round(0.60 * (totalPoints - 1));
+        const s2 = Math.round(0.82 * (totalPoints - 1));
+
+        points[r1].price = resistanceLevel;
+        points[s1].price = supportLevel;
+        points[r2].price = resistanceLevel;
+        points[s2].price = supportLevel;
+
+        touchMarkers = [
+          { index: r1, price: resistanceLevel, color: '#ef4444', label: 'Techo' },
+          { index: s1, price: supportLevel, color: '#10b981', label: 'Suelo' },
+          { index: r2, price: resistanceLevel, color: '#ef4444', label: 'Techo' },
+          { index: s2, price: supportLevel, color: '#10b981', label: 'Suelo' }
+        ];
+
+        explanation = `El precio estuvo encerrado rebotando entre una <strong>Resistencia arriba ($${resistanceLevel.toFixed(2)}, línea roja)</strong> y un <strong>Soporte abajo ($${supportLevel.toFixed(2)}, línea verde)</strong> sin salir del canal. Eso es un <strong>Movimiento Lateral</strong>.`;
+      }
+
+      return {
+        type,
+        points,
+        supportLevel,
+        resistanceLevel,
+        touchMarkers,
+        explanation,
+        ticker: ASSETS[Math.floor(Math.random() * ASSETS.length)]
+      };
+    }
+
+    /**
+     * Renderiza el gráfico de línea en el canvas.
+     * Si showLevels = true, dibuja las líneas horizontales de soporte (verde) y/o resistencia (roja).
+     */
+    function renderChart(showLevels = false) {
+      if (!currentRound) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const width = rect.width;
+      const height = rect.height;
+
+      const padLeft = 24;
+      const padRight = 74;
+      const padTop = 34;
+      const padBottom = 32;
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      // Fondo oscuro del canvas
+      ctx.fillStyle = '#090c12';
+      ctx.fillRect(0, 0, width, height);
+
+      const pts = currentRound.points;
+      let minP = Infinity;
+      let maxP = -Infinity;
+      pts.forEach(p => {
+        if (p.price < minP) minP = p.price;
+        if (p.price > maxP) maxP = p.price;
+      });
+
+      const margin = (maxP - minP) * 0.2 || 6;
+      minP -= margin;
+      maxP += margin;
+
+      const priceToY = (price) => padTop + plotH - ((price - minP) / (maxP - minP)) * plotH;
+      const indexToX = (idx) => padLeft + (idx / (pts.length - 1)) * plotW;
+
+      // Cuadrícula horizontal y precios a la derecha
+      const rows = 5;
+      ctx.strokeStyle = '#151c28';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#6e7681';
+      ctx.font = '11px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+
+      for (let i = 0; i <= rows; i++) {
+        const val = minP + ((maxP - minP) * i) / rows;
+        const y = priceToY(val);
+
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(width - padRight, y);
+        ctx.stroke();
+
+        ctx.fillText(`$${val.toFixed(1)}`, width - padRight + 10, y + 4);
+      }
+
+      // Dibujar área sombreada bajo la línea de precio
+      const areaGrad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+      areaGrad.addColorStop(0, 'rgba(59, 130, 246, 0.28)');
+      areaGrad.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+      ctx.beginPath();
+      pts.forEach((pt, idx) => {
+        const x = indexToX(pt.index);
+        const y = priceToY(pt.price);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(indexToX(pts.length - 1), padTop + plotH);
+      ctx.lineTo(indexToX(0), padTop + plotH);
+      ctx.closePath();
+      ctx.fillStyle = areaGrad;
+      ctx.fill();
+
+      // Dibujar la línea principal del precio
+      ctx.beginPath();
+      pts.forEach((pt, idx) => {
+        const x = indexToX(pt.index);
+        const y = priceToY(pt.price);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2.8;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Si corresponde mostrar la solución, trazamos las líneas horizontales de Soporte / Resistencia
+      if (showLevels) {
+        // Línea horizontal de RESISTENCIA (Roja)
+        if (currentRound.resistanceLevel !== null) {
+          const yRes = priceToY(currentRound.resistanceLevel);
+
+          // Franja de zona de resistencia
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.14)';
+          ctx.fillRect(padLeft, yRes - 8, plotW, 16);
+
+          ctx.save();
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([8, 5]);
+          ctx.beginPath();
+          ctx.moveTo(padLeft, yRes);
+          ctx.lineTo(width - padRight, yRes);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.fillStyle = '#f87171';
+          ctx.font = 'bold 12px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(`RESISTENCIA (Techo: $${currentRound.resistanceLevel.toFixed(2)})`, padLeft + 10, yRes - 10);
+        }
+
+        // Línea horizontal de SOPORTE (Verde)
+        if (currentRound.supportLevel !== null) {
+          const ySup = priceToY(currentRound.supportLevel);
+
+          // Franja de zona de soporte
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.14)';
+          ctx.fillRect(padLeft, ySup - 8, plotW, 16);
+
+          ctx.save();
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([8, 5]);
+          ctx.beginPath();
+          ctx.moveTo(padLeft, ySup);
+          ctx.lineTo(width - padRight, ySup);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.fillStyle = '#34d399';
+          ctx.font = 'bold 12px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(`SOPORTE (Suelo: $${currentRound.supportLevel.toFixed(2)})`, padLeft + 10, ySup + 20);
+        }
+
+        // Dibujar círculos en los puntos exactos donde el precio rebotó o chocó
+        currentRound.touchMarkers.forEach(marker => {
+          const cx = indexToX(marker.index);
+          const cy = priceToY(marker.price);
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+          ctx.fillStyle = '#090c12';
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = marker.color;
+          ctx.stroke();
+        });
+      }
+    }
+
+    /**
+     * Evalúa la respuesta del usuario
+     */
+    function handleGuess(userChoice) {
+      if (isAnswered) return;
+      isAnswered = true;
+
+      const isCorrect = userChoice === currentRound.type;
+
+      // Resaltar botones
+      const buttons = document.querySelectorAll('.guess-btn');
+      buttons.forEach(btn => {
+        btn.disabled = true;
+        const btnType = btn.getAttribute('data-type');
+        if (btnType === currentRound.type) {
+          btn.classList.add('btn-correct');
+        } else if (btnType === userChoice && !isCorrect) {
+          btn.classList.add('btn-wrong');
+        }
+      });
+
+      const feedbackCard = document.getElementById('feedbackCard');
+      const feedbackHeadline = document.getElementById('feedbackHeadline');
+      const feedbackText = document.getElementById('feedbackText');
+      const timerBar = document.getElementById('timerBar');
+
+      if (isCorrect) {
+        score++;
+        streak++;
+        updateScoreUI();
+
+        // Mostrar líneas también al acertar como refuerzo positivo
+        renderChart(true);
+
+        feedbackCard.className = 'feedback-card visible is-success';
+        feedbackHeadline.textContent = `✅ ¡Correcto! Es un escenario de ${LABELS[currentRound.type]} (+1 punto)`;
+        feedbackText.innerHTML = `${currentRound.explanation} <br><small style="color: var(--text-muted);">Cargando un nuevo gráfico automáticamente...</small>`;
+
+        startAutoAdvance(2600, timerBar);
+      } else {
+        streak = 0;
+        updateScoreUI();
+
+        // Lo más importante al fallar: dibujar las líneas horizontales correctas (verde/roja) en el gráfico
+        renderChart(true);
+
+        feedbackCard.className = 'feedback-card visible is-error';
+        feedbackHeadline.textContent = `❌ Incorrecto — Elegiste "${LABELS[userChoice]}", pero era "${LABELS[currentRound.type]}"`;
+        feedbackText.innerHTML = `<strong>Observa las líneas trazadas en el gráfico:</strong> ${currentRound.explanation}`;
+
+        startAutoAdvance(6000, timerBar);
+      }
+    }
+
+    function startAutoAdvance(durationMs, timerBarElement) {
+      clearTimeout(autoNextTimeout);
+
+      // Reiniciar animación de la barra de tiempo
+      timerBarElement.style.transition = 'none';
+      timerBarElement.style.transform = 'scaleX(1)';
+      void timerBarElement.offsetWidth; // Forzar reflow
+      timerBarElement.style.transition = `transform ${durationMs}ms linear`;
+      timerBarElement.style.transform = 'scaleX(0)';
+
+      autoNextTimeout = setTimeout(() => {
+        loadNextRound();
+      }, durationMs);
+    }
+
+    function updateScoreUI() {
+      document.getElementById('scoreDisplay').textContent = score;
+      document.getElementById('streakDisplay').textContent = `${streak} 🔥`;
+    }
+
+    function loadNextRound() {
+      clearTimeout(autoNextTimeout);
+      isAnswered = false;
+      currentRound = createScenario();
+
+      document.getElementById('assetTicker').textContent = currentRound.ticker;
+      document.getElementById('feedbackCard').className = 'feedback-card';
+
+      const buttons = document.querySelectorAll('.guess-btn');
+      buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('btn-correct', 'btn-wrong');
+      });
+
+      renderChart(false);
+    }
+
+    // Atajos de teclado (1: Soporte, 2: Resistencia, 3: Movimiento Lateral)
+    window.addEventListener('keydown', (e) => {
+      if (!isAnswered) {
+        if (e.key === '1') handleGuess('support');
+        if (e.key === '2') handleGuess('resistance');
+        if (e.key === '3') handleGuess('sideways');
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        loadNextRound();
+      }
+    });
+
+    window.addEventListener('resize', () => renderChart(isAnswered));
+
+    // Iniciar primer gráfico
+    loadNextRound();
+  </script>
+</body>
+</html>

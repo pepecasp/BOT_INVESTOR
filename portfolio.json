@@ -1,0 +1,32 @@
+[
+  {
+    "id": "tx-vuaa-01",
+    "asset_name": "S&P 500 (VUAA)",
+    "ticker": "VUAA.DE",
+    "date": "2024-03-15",
+    "price_eur": 88.40,
+    "shares": 15.0,
+    "commission_eur": 1.50,
+    "notes": "Aportación DCA inicial"
+  },
+  {
+    "id": "tx-gold-01",
+    "asset_name": "Oro Físico ETC (4GLD)",
+    "ticker": "4GLD.DE",
+    "date": "2024-04-10",
+    "price_eur": 68.20,
+    "shares": 10.0,
+    "commission_eur": 1.25,
+    "notes": "Cobertura inflación"
+  },
+  {
+    "id": "tx-silver-01",
+    "asset_name": "Plata Futuros (SI=F)",
+    "ticker": "SI=F",
+    "date": "2024-05-02",
+    "price_eur": 26.50,
+    "shares": 25.0,
+    "commission_eur": 2.00,
+    "notes": "Posición cuantitativa táctica"
+  }
+]
